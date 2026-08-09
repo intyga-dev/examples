@@ -1,0 +1,82 @@
+# Gate a production deploy on a signed human approval — GitLab CI.
+#
+# Three stages. Deploy credentials belong ONLY to the `deploy` stage, so a compromised build can
+# request an approval but can neither obtain one nor reach the credentials.
+
+stages:
+  - build
+  - approve
+  - deploy
+
+variables:
+  INTYGA_TARGET: prod-eu-1
+  INTYGA_ACTION_TYPE: deploy_production
+
+build:
+  stage: build
+  image: node:24
+  script:
+    - echo "build the artefact here — no deploy credentials in this stage"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 day
+
+approve:
+  stage: approve
+  image: node:24
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq jq
+  script:
+    # --no-wait returns immediately with the nonce and the approval deep-link, so the runner never
+    # blocks on a browser it cannot open.
+    #
+    # The LAST LINE of stdout is the machine-readable JSON; a human-readable banner precedes it.
+    # `approval_url` in $GITHUB_OUTPUT is GitHub-only — here the key is `approvalUrl`.
+    - |
+      OUT=$(npx --yes @intyga/sdk authorize "Deploy $CI_COMMIT_SHORT_SHA to production" \
+        --gateway "$INTYGA_GATEWAY_URL" \
+        --web "$INTYGA_WEB_URL" \
+        --target "$INTYGA_TARGET" \
+        --type "$INTYGA_ACTION_TYPE" \
+        --params "$(jq -cn --arg sha "$CI_COMMIT_SHA" '{sha:$sha,environment:"production"}')" \
+        --no-wait --no-open | tail -n1)
+      echo "INTYGA_NONCE=$(printf '%s' "$OUT" | jq -r .nonce)" >> approval.env
+      echo "INTYGA_APPROVAL_URL=$(printf '%s' "$OUT" | jq -r .approvalUrl)" >> approval.env
+    - |
+      if [ -n "${INTYGA_SLACK_WEBHOOK:-}" ]; then
+        . ./approval.env
+        npx --yes @intyga/sdk notify \
+          --url "$INTYGA_APPROVAL_URL" \
+          --context "Deploy $CI_COMMIT_SHORT_SHA to production" \
+          --slack "$INTYGA_SLACK_WEBHOOK"
+      fi
+  artifacts:
+    # dotenv is how a GitLab job hands variables to a later stage.
+    reports:
+      dotenv: approval.env
+
+deploy:
+  stage: deploy
+  image: node:24
+  environment:
+    name: production
+  needs:
+    - job: build
+      artifacts: true
+    - job: approve
+      artifacts: true
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq jq
+  script:
+    # Blocks until signed, verifies the receipt against approver keys THIS job trusts, and redeems it
+    # single-use. A non-zero exit fails the job before any deploy credential is used — that is the
+    # gate, so do not add `|| true` to it.
+    - |
+      npx --yes @intyga/sdk await "$INTYGA_NONCE" \
+        --gateway "$INTYGA_GATEWAY_URL" \
+        --target "$INTYGA_TARGET" \
+        --type "$INTYGA_ACTION_TYPE" \
+        --params "$(jq -cn --arg sha "$CI_COMMIT_SHA" '{sha:$sha,environment:"production"}')" \
+        --timeout 1800 --consume
+    - ./deploy.sh

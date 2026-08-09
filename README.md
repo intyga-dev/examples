@@ -1,0 +1,45 @@
+# Examples
+
+Runnable integrations. Each directory is self-contained with its own README — copy the one closest
+to your situation and change the target, action type and parameters.
+
+| Example | Language / platform | What it gates |
+| :--- | :--- | :--- |
+| [`gate-terraform-apply`](gate-terraform-apply/) | Terraform + shell + GitHub Actions | A `terraform apply`, bound to the **plan file hash** so the apply cannot drift from what was approved |
+| [`ci-cd-github-action`](ci-cd-github-action/) | GitHub Actions | Any workflow step, with no application code changes |
+| [`gate-ci-pipelines`](gate-ci-pipelines/) | GitLab CI · Jenkins · Azure Pipelines | The same deploy gate on the CI systems with no Action |
+| [`gate-prod-delete`](gate-prod-delete/) | Node.js | A destructive database operation |
+| [`gate-prod-delete-java`](gate-prod-delete-java/) | Java | The same, for a JVM service |
+| [`gate-spring-boot-endpoint`](gate-spring-boot-endpoint/) | Spring Boot | A privileged HTTP endpoint |
+| [`gate-quarkus-deploy`](gate-quarkus-deploy/) | Quarkus | A deploy endpoint |
+| [`gate-langchain4j-tool`](gate-langchain4j-tool/) | LangChain4j | An AI agent tool call before it executes |
+
+## The shape every example follows
+
+```
+1. Build the exact parameters you are about to execute.
+2. Request a human approval and wait for the signed result.
+3. Re-verify the receipt LOCALLY against approver keys you already trust.
+4. Execute once.
+```
+
+Step 3 is the one that matters and the one most likely to be dropped when adapting an example. The
+receipt is checked in your process, against parameters you derived and keys you already trusted —
+never against anything the response says about itself. `approvers` is a required argument with no
+default for exactly this reason: a receipt checked against the key inside itself proves nothing.
+
+## Two mistakes these examples are written to prevent
+
+**Approving a description instead of an instruction.** Bind the values that will actually execute —
+the IBAN, the plan hash, the artifact digest — not a sentence about them. If a parameter can change
+between approval and execution without changing the signature, it was never really gated.
+
+**Re-deriving the work after approval.** `terraform apply` without a saved plan file re-plans;
+a publish step that rebuilds instead of shipping the reviewed artifact rebuilds. Approve A, execute
+A — see [`gate-terraform-apply`](gate-terraform-apply/) for the worked version of this.
+
+## Related
+
+- [`docs/quickstart.md`](../docs/quickstart.md) — gate one call, end to end
+- [`docs/API.md`](../docs/API.md) — the REST surface these call
+- [`docs/MCP.md`](../docs/MCP.md) — the agent path

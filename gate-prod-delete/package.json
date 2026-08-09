@@ -1,0 +1,13 @@
+{
+  "name": "intyga-example-gate-prod-delete",
+  "private": true,
+  "type": "module",
+  "description": "Require a signed human approval before deleting a production database.",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@intyga/sdk": "^0.1.0",
+    "@intyga/verify": "^0.1.0"
+  }
+}

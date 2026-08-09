@@ -1,0 +1,133 @@
+# Gate a Terraform apply in GitHub Actions on a signed human approval.
+#
+# Two jobs on purpose. The planning job holds no cloud write credentials and no ability to apply; it
+# produces a plan and asks for approval. The applying job recomputes the plan hash from the bytes it
+# received and only then obtains apply authority. That split is the whole security property — a
+# single job that both plans and applies can be talked into applying something other than what was
+# approved, and the approval cannot tell.
+#
+# Copy into .github/workflows/ and adjust the environment names.
+name: Terraform Apply (gated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Terraform workspace to apply"
+        required: true
+        default: prod
+        type: string
+
+concurrency:
+  group: terraform-apply-${{ inputs.workspace }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan and request approval
+    runs-on: ubuntu-latest
+    outputs:
+      nonce: ${{ steps.request.outputs.nonce }}
+      plan_hash: ${{ steps.plan.outputs.plan_hash }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - id: plan
+        name: Plan
+        env:
+          TF_WORKSPACE: ${{ inputs.workspace }}
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan
+          echo "plan_hash=$(sha256sum tfplan | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      # The plan file, not a rendering of it. The applying job needs the exact bytes it will execute.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.workspace }}
+          path: tfplan
+          if-no-files-found: error
+
+      - id: request
+        name: Request approval
+        env:
+          INTYGA_CLIENT_ID: ${{ secrets.INTYGA_CLIENT_ID }}
+          INTYGA_CLIENT_SECRET: ${{ secrets.INTYGA_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          npx --yes @intyga/sdk authorize \
+            "Terraform apply — ${{ inputs.workspace }} (${{ steps.plan.outputs.plan_hash }})" \
+            --gateway "${{ secrets.INTYGA_GATEWAY_URL }}" \
+            --web "${{ secrets.INTYGA_WEB_URL }}" \
+            --target "${{ inputs.workspace }}" \
+            --type terraform_apply \
+            --params "$(jq -cn \
+              --arg workspace '${{ inputs.workspace }}' \
+              --arg planHash '${{ steps.plan.outputs.plan_hash }}' \
+              --arg commit '${{ github.sha }}' \
+              '{workspace:$workspace,planHash:$planHash,commit:$commit}')" \
+            --no-wait --no-open
+
+      - name: Notify approvers
+        env:
+          SLACK: ${{ secrets.INTYGA_SLACK_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK:-}" ]; then echo "no webhook set — approve from the console"; exit 0; fi
+          npx --yes @intyga/sdk notify \
+            --url "${{ steps.request.outputs.approval_url }}" \
+            --context "Terraform apply — ${{ inputs.workspace }}" \
+            --slack "$SLACK"
+
+  apply:
+    name: Apply the approved plan
+    needs: plan
+    runs-on: ubuntu-latest
+    # Cloud credentials live here and nowhere else, so the planning job cannot apply even if it wants to.
+    environment: ${{ inputs.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.workspace }}
+
+      # Never trust the planning job's reported hash — hash the bytes actually received. A compromised
+      # planner can report whatever hash it likes; this is what stops a swapped plan.
+      - name: Recompute the plan hash
+        id: verify
+        run: |
+          set -euo pipefail
+          ACTUAL="$(sha256sum tfplan | cut -d' ' -f1)"
+          if [ "$ACTUAL" != "${{ needs.plan.outputs.plan_hash }}" ]; then
+            echo "::error::plan digest does not match the approved plan"
+            exit 1
+          fi
+          echo "plan_hash=$ACTUAL" >> "$GITHUB_OUTPUT"
+
+      # Blocks until signed, then verifies the receipt against approver keys THIS job trusts and
+      # redeems it single-use. A non-zero exit fails the job before any credential is used.
+      - name: Await the human signature
+        env:
+          INTYGA_CLIENT_ID: ${{ secrets.INTYGA_CLIENT_ID }}
+          INTYGA_CLIENT_SECRET: ${{ secrets.INTYGA_CLIENT_SECRET }}
+          INTYGA_APPROVER_KEYS: ${{ secrets.INTYGA_APPROVER_KEYS }}
+        run: |
+          set -euo pipefail
+          npx --yes @intyga/sdk await "${{ needs.plan.outputs.nonce }}" \
+            --gateway "${{ secrets.INTYGA_GATEWAY_URL }}" \
+            --target "${{ inputs.workspace }}" \
+            --type terraform_apply \
+            --params "$(jq -cn \
+              --arg workspace '${{ inputs.workspace }}' \
+              --arg planHash '${{ steps.verify.outputs.plan_hash }}' \
+              --arg commit '${{ github.sha }}' \
+              '{workspace:$workspace,planHash:$planHash,commit:$commit}')" \
+            --timeout 1800 --consume
+
+      # The saved plan, not a fresh one. `terraform apply` without the file re-plans and applies
+      # something nobody signed for.
+      - name: Apply
+        run: terraform init -input=false && terraform apply -input=false tfplan
