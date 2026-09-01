@@ -68,7 +68,13 @@ public class WipeController {
         ApprovalReceipt.parse(approval.receipt()),
         new Expected(TARGET, approval.nonce(), "wipe_production", params,
             ApproverTrustAnchor.ofPublicKeys(APPROVER_KEYS)),
-        VerifyOptions.defaults());
+        // REQUIRED for passkey receipts (the normal flow): pin the assertion to the approval
+        // console the human signed in — your deployment's WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID.
+        // The verifier fails closed without them.
+        VerifyOptions.builder()
+            .expectedOrigin(System.getenv("INTYGA_WEBAUTHN_ORIGIN"))
+            .expectedRpId(System.getenv("INTYGA_WEBAUTHN_RP_ID"))
+            .build());
     if (!check.ok()) {
       throw new ApprovalRefusedException(ApprovalStatus.DENIED, "receipt did not verify: " + check.reason());
     }

@@ -86,7 +86,13 @@ public final class GateProdDelete {
             "wipe_production",
             approvedParams,
             ApproverTrustAnchor.ofPublicKeys(approverKeys)),
-        VerifyOptions.defaults());
+        // REQUIRED for passkey receipts (the normal flow): pin the assertion to the approval
+        // console the human signed in — your deployment's WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID.
+        // The verifier fails closed without them.
+        VerifyOptions.builder()
+            .expectedOrigin(System.getenv("INTYGA_WEBAUTHN_ORIGIN"))
+            .expectedRpId(System.getenv("INTYGA_WEBAUTHN_RP_ID"))
+            .build());
     if (!check.ok()) {
       System.err.println("❌ Receipt did not verify: " + check.reason() + ". Aborting.");
       System.exit(1);

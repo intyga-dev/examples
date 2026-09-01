@@ -49,6 +49,8 @@ export INTYGA_GATEWAY_URL=https://api.intyga.com
 export INTYGA_CLIENT_ID=...        # a SERVICE identity — it requests, a human approves
 export INTYGA_CLIENT_SECRET=...
 export INTYGA_APPROVER_KEYS=...    # comma-separated public keys YOU trust
+export INTYGA_WEBAUTHN_ORIGIN=...  # the approval console's origin — REQUIRED for passkey receipts
+export INTYGA_WEBAUTHN_RP_ID=...   # its relying-party ID; the verifier fails closed without these
 
 ./gate-apply.sh
 ```

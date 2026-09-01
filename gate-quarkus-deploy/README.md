@@ -15,11 +15,13 @@ INTYGA_GATEWAY_URL=http://localhost:8787 \
 INTYGA_CLIENT_ID=<your-api-key-client-id> \
 INTYGA_CLIENT_SECRET=<your-api-key-secret> \
 INTYGA_APPROVER_KEYS=<base64-approver-public-key>[,<more>] \
+INTYGA_WEBAUTHN_ORIGIN=<approval-console-origin> \
+INTYGA_WEBAUTHN_RP_ID=<approval-console-rp-id> \
 mvn quarkus:dev
 ```
 
 `INTYGA_APPROVER_KEYS` is the key set **this service** trusts, resolved from its own key
-management — never the one carried inside the receipt, so there is deliberately no default.
+management — never the one carried inside the receipt, so there is deliberately no default. Passkey receipts (the normal flow) additionally require `INTYGA_WEBAUTHN_ORIGIN` / `INTYGA_WEBAUTHN_RP_ID` — the origin and RP ID of the approval console the human signs in; the verifier fails closed without them.
 
 Then, in another terminal:
 

@@ -96,6 +96,9 @@ stages:
                     INTYGA_CLIENT_ID: $(INTYGA_CLIENT_ID)
                     INTYGA_CLIENT_SECRET: $(INTYGA_CLIENT_SECRET)
                     INTYGA_APPROVER_KEYS: $(INTYGA_APPROVER_KEYS)
+                    # REQUIRED for passkey receipts — the approval console's origin and RP ID.
+                    INTYGA_WEBAUTHN_ORIGIN: $(INTYGA_WEBAUTHN_ORIGIN)
+                    INTYGA_WEBAUTHN_RP_ID: $(INTYGA_WEBAUTHN_RP_ID)
 
                 - bash: ./deploy.sh
                   displayName: Deploy

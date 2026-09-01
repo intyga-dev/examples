@@ -72,6 +72,11 @@ deploy:
     # Blocks until signed, verifies the receipt against approver keys THIS job trusts, and redeems it
     # single-use. A non-zero exit fails the job before any deploy credential is used — that is the
     # gate, so do not add `|| true` to it.
+    #
+    # Project CI variables required: INTYGA_APPROVER_KEYS, and — for passkey receipts (the normal
+    # flow) — INTYGA_WEBAUTHN_ORIGIN + INTYGA_WEBAUTHN_RP_ID (the approval console's origin and RP
+    # ID). GitLab injects them into the job env, where the CLI reads them; the offline verifier
+    # fails closed on a passkey receipt without them.
     - |
       npx --yes @intyga/sdk await "$INTYGA_NONCE" \
         --gateway "$INTYGA_GATEWAY_URL" \

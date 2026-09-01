@@ -19,6 +19,10 @@ PLAN="${PLAN_FILE:-tfplan}"
 # Approver keys are REQUIRED and come from your side. A receipt checked against the key inside
 # itself proves nothing, so the CLI has no default for this.
 : "${INTYGA_APPROVER_KEYS:?set INTYGA_APPROVER_KEYS (comma-separated public keys you trust)}"
+# Passkey receipts (the normal flow) also need the WebAuthn expectations — the origin and
+# RP ID of the approval console the human signs in. The verifier fails closed without them.
+: "${INTYGA_WEBAUTHN_ORIGIN:?set INTYGA_WEBAUTHN_ORIGIN (the approval console origin)}"
+: "${INTYGA_WEBAUTHN_RP_ID:?set INTYGA_WEBAUTHN_RP_ID (its relying-party ID)}"
 
 terraform init -input=false >/dev/null
 

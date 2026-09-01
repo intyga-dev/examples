@@ -1,6 +1,8 @@
 // Gate a production database deletion behind a signed human approval.
 // Run: INTYGA_GATEWAY_URL=... INTYGA_CLIENT_ID=... INTYGA_CLIENT_SECRET=... \
-//      INTYGA_APPROVER_KEYS=<base64>,<base64> node index.mjs prod-db-1
+//      INTYGA_APPROVER_KEYS=<base64>,<base64> \
+//      INTYGA_WEBAUTHN_ORIGIN=https://console.example.com INTYGA_WEBAUTHN_RP_ID=console.example.com \
+//      node index.mjs prod-db-1
 import { IntygaClient } from "@intyga/sdk"
 import { verifyApprovalReceipt } from "@intyga/verify"
 
@@ -42,11 +44,20 @@ async function main() {
 
   // Prove locally that a human signed off on THIS exact instruction (no Intyga secret).
   // target, nonce and approvers are asserted from OUR side, never read from the receipt.
-  const check = verifyApprovalReceipt(approval.receipt, {
-    ...action,
-    nonce: approval.nonce,
-    approvers: { publicKeys: approverKeys },
-  })
+  const check = verifyApprovalReceipt(
+    approval.receipt,
+    {
+      ...action,
+      nonce: approval.nonce,
+      approvers: { publicKeys: approverKeys },
+    },
+    {
+      // REQUIRED for passkey receipts: pin the assertion to the approval console the human signed in
+      // (your deployment's WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID). The verifier fails closed without them.
+      expectedOrigin: process.env.INTYGA_WEBAUTHN_ORIGIN,
+      expectedRpId: process.env.INTYGA_WEBAUTHN_RP_ID,
+    },
+  )
   if (!check.ok) {
     console.error(`❌ Receipt did not verify: ${check.reason}. Aborting.`)
     process.exit(1)
