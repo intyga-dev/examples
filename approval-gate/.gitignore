@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+trust-anchor.json
+*.log
+coverage/
+*.pem
+*.key

@@ -1,0 +1,1 @@
+{ "rules": [{ "action": "blocked_action", "effect": "deny" }] }

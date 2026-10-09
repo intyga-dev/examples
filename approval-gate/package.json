@@ -1,0 +1,48 @@
+{
+  "name": "intyga-approval-gate-example",
+  "description": "Require human approval, verify the signed receipt, and consume it before executing an action.",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "mcp": "node --env-file-if-exists=.env --import tsx src/mcp-stdio.ts",
+    "mcp:proxy": "node --env-file-if-exists=.env --import tsx src/proxy.ts",
+    "mcp:list": "node --env-file-if-exists=.env --import tsx src/mcp-client.ts list",
+    "mcp:call": "node --env-file-if-exists=.env --import tsx src/mcp-client.ts call",
+    "mcp:agent": "node --env-file-if-exists=.env --import tsx src/agent/stdio.ts",
+    "format": "biome check --write .",
+    "lint": "biome check .",
+    "demo": "node --env-file-if-exists=.env --import tsx src/agent/demo.ts"
+  },
+  "dependencies": {
+    "@intyga/mcp-proxy": "^1.0.0",
+    "@intyga/mcp-sdk": "^1.0.0",
+    "@intyga/sdk": "^1.1.0",
+    "@intyga/verify": "^1.1.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "fastify": "5.12.2",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "26.4.0",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
