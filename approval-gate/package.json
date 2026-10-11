@@ -26,13 +26,13 @@
     "demo": "node --env-file-if-exists=.env --import tsx src/agent/demo.ts"
   },
   "dependencies": {
-    "@intyga/mcp-proxy": "^1.0.0",
-    "@intyga/mcp-sdk": "^1.0.0",
-    "@intyga/sdk": "^1.1.0",
-    "@intyga/verify": "^1.1.0",
-    "@modelcontextprotocol/sdk": "1.31.0",
+    "@intyga/mcp-proxy": "^2.0.0",
+    "@intyga/mcp-sdk": "^2.0.0",
+    "@intyga/sdk": "^2.0.0",
+    "@intyga/verify": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "fastify": "5.12.2",
-    "zod": "4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

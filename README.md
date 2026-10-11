@@ -58,15 +58,22 @@ between those steps. Approval records do not prove the business operation comple
 ## Running and contributing
 
 These examples are maintained in INTYGA core and exported to the public examples repository.
-They use published packages and are independent of the core pnpm workspace. For Node projects
-with a lockfile, run `pnpm install --ignore-workspace --frozen-lockfile` inside the example;
-follow each README for credentials, trust-anchor setup and execution.
+They use published packages and are independent of the core pnpm workspace. For Node projects, run
+`pnpm install --ignore-workspace` inside the example; this creates a local lockfile. The checked-in
+example locks are omitted while the coordinated 2.0.0 packages are not yet published, because their
+tarballs cannot be represented honestly in a registry lock. Regenerate and check in those locks
+after publication. Follow each README for credentials, trust-anchor setup and execution.
 
-The **Runnable examples** CI job builds the public export, audits production Node dependencies,
-then typechecks, builds and tests
-`approval-gate` and `gate-artifact-deploy`, and runs the Python export tests. The tests use locally
-generated signatures and require no gateway or credentials. Other recipes retain the manual
-verification described in their READMEs.
+The **Runnable examples** CI job builds the public export, packs the candidate `@intyga/sdk`,
+`@intyga/verify`, `@intyga/mcp-sdk` and `@intyga/mcp-proxy` from the checkout, then installs those
+artifacts into the temporary exported Node examples through test-only dependency overrides. It also
+builds and installs a candidate Python SDK wheel into the exported Python example. The job audits
+production dependencies, typechecks, builds and tests `approval-gate` and `gate-artifact-deploy`, and
+runs the Python export tests. The examples keep their semver dependency ranges; candidate
+artifacts are used only in CI's temporary copy.
+This lets changes to receipt verification, including tenant binding, be tested before publication.
+The tests use locally generated signatures and require no gateway or credentials. Other recipes
+retain the manual verification described in their READMEs.
 
 To add an example, create a descriptive directory with a README, published dependency versions,
 sample configuration and a harmless default action. Explain the trust assumptions and production

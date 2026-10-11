@@ -19,9 +19,12 @@ export const config: Config = {
 const approver = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
 const publicKey = approver.publicKey.export({ format: "der", type: "spki" }).toString("base64")
 const did = "did:intyga:test-approver"
+const tenantId = "tenant-approval-gate-test"
 export const trust: TrustAnchorFile = {
   type: "intyga-trust-anchor",
   v: 1,
+  purpose: "online",
+  tenantId,
   epoch: 1,
   approvers: [{ did, publicKeys: [publicKey] }],
 }
@@ -35,6 +38,7 @@ export function fakeGateway() {
   const entries = new Map<string, { action: Request; consumed: boolean }>()
   let state = "APPROVED"
   let tamper = false
+  let receiptTenantId = tenantId
   let consumeAllowed = true
   let consumeCount = 0
   let calls = 0
@@ -72,6 +76,7 @@ export function fakeGateway() {
     const requester = { did: "did:intyga:test-service", attestation: null }
     const action = entry.action
     const canonicalPayload = canonicalIntentPayload({
+      tenantId: receiptTenantId,
       target: action.target,
       actionType: action.actionType,
       display: action.actionDescription,
@@ -112,6 +117,9 @@ export function fakeGateway() {
     },
     setTampered: () => {
       tamper = true
+    },
+    setReceiptTenantId: (value: string) => {
+      receiptTenantId = value
     },
     refuseConsume: () => {
       consumeAllowed = false

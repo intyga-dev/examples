@@ -21,6 +21,8 @@ export async function deployArtifact(input: {
   requiredApprovals: number
 }) {
   const { target, environment, artifactName, requiredApprovals } = instruction.parse(input)
+  const tenantId = input.trust.tenantId
+  if (!tenantId) throw new Error("Export a trust anchor with your expected tenantId before deploying")
   // Snapshot before waiting. A real deploy adapter must upload this snapshot, not re-read the path.
   const snapshot = Uint8Array.from(input.artifact)
   const params = {
@@ -41,6 +43,7 @@ export async function deployArtifact(input: {
     approval.receipt,
     {
       ...action,
+      tenantId,
       nonce: approval.nonce,
       approvers: trustAnchorApprovers(input.trust),
       requirement: { requiredApprovals },

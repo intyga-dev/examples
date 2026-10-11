@@ -10,7 +10,7 @@ approval, verifies the receipt against your trusted approvers, consumes the appr
 Requires Node 24+ and pnpm 10. From this directory:
 
 ```sh
-pnpm install --ignore-workspace --frozen-lockfile
+pnpm install --ignore-workspace
 cp .env.example .env
 pnpm test
 pnpm typecheck

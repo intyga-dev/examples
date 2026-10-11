@@ -11,6 +11,7 @@ INTYGA_GATEWAY_URL=http://localhost:8787 \
 INTYGA_CLIENT_ID=<your-api-key-client-id> \
 INTYGA_CLIENT_SECRET=<your-api-key-secret> \
 INTYGA_APPROVER_KEYS=<base64-approver-public-key>[,<more>] \
+INTYGA_TENANT_ID=<expected-workspace-id> \
 INTYGA_WEBAUTHN_ORIGIN=<approval-console-origin> \
 INTYGA_WEBAUTHN_RP_ID=<approval-console-rp-id> \
 node index.mjs prod-db-1

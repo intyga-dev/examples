@@ -87,6 +87,7 @@ const refusals = [
   { mode: "EXPIRED", status: 403, consumes: 0 },
   { mode: "PENDING", status: 403, consumes: 0 },
   { mode: "tampered", status: 403, consumes: 0 },
+  { mode: "tenant-mismatch", status: 403, consumes: 0 },
   { mode: "quorum", status: 403, consumes: 0 },
   { mode: "consume-refused", status: 409, consumes: 1 },
   { mode: "missing-trust", status: 503, consumes: 0 },
@@ -101,6 +102,7 @@ for (const { mode, status, consumes } of refusals) {
     )
     t.after(() => app.close())
     if (mode === "tampered") gateway.setTampered()
+    if (mode === "tenant-mismatch") gateway.setReceiptTenantId("another-workspace")
     if (mode === "consume-refused") gateway.refuseConsume()
     if (["DENIED", "EXPIRED", "PENDING"].includes(mode)) gateway.setStatus(mode)
     const response = await post(app)

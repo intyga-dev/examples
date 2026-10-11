@@ -43,6 +43,7 @@ const verification = verifyApprovalReceipt(
   receipt,
   {
     ...action,
+    tenantId: trust.tenantId, // workspace from your independently adopted export
     nonce,
     approvers: trustAnchorApprovers(trust),
     requirement: { requiredApprovals: config.INTYGA_REQUIRED_APPROVALS },
@@ -91,7 +92,7 @@ Requires Node 24+ and pnpm 10.
 
 ```sh
 cd path/to/this-example
-pnpm install --ignore-workspace --frozen-lockfile
+pnpm install --ignore-workspace
 pnpm run setup
 pnpm test
 pnpm typecheck
@@ -105,7 +106,9 @@ For automatic restarts during development: `pnpm dev`.
 The server listens on `127.0.0.1:4400` only.
 
 In INTYGA core, this project lives at `examples/approval-gate`. `--ignore-workspace`
-keeps its dependencies and lockfile independent, just as when you copy this directory elsewhere.
+keeps its dependencies independent of the core pnpm workspace. A lockfile is generated locally;
+the checked-in lock is omitted until the coordinated 2.0.0 packages are published, then regenerated
+from the registry.
 
 For real approvals, fill in `.env`:
 
@@ -137,10 +140,12 @@ To create it:
    action. For high assurance, confirm a key fingerprint with the approver out of band.
 3. Save it as `./trust-anchor.json` (or point `INTYGA_TRUST_ANCHOR_FILE` at it) and restart.
 
-The file holds the approvers' DIDs and public keys, plus the console's `webauthn.origin` and
-`webauthn.rpId`, which pin passkey assertions to your approval console. It contains no secrets,
-but treat it as security configuration: don't fetch it at runtime, and re-export it when your
-approvers or approval rules change. It is git-ignored here.
+The file holds the workspace `tenantId`, the approvers' DIDs and public keys, plus the console's
+`webauthn.origin` and `webauthn.rpId`, which pin passkey assertions to your approval console. Use
+that same tenant ID in your verifier's `expected.tenantId`; a signature from another workspace or a
+legacy unbound receipt is refused. It contains no secrets, but treat it as security configuration:
+don't fetch it at runtime, and re-export it when your approvers or approval rules change. It is
+git-ignored here.
 
 ## Flow 1: your API gates the request
 

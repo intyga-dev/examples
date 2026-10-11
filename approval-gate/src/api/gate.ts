@@ -26,6 +26,8 @@ const refuse = (httpStatus: number, body: Record<string, unknown>): GateOutcome 
  * Execute the action only after the gate returns `ok: true`.
  */
 export function createGate(config: Config, client: IntygaClient, trust: TrustAnchorFile) {
+  const tenantId = trust.tenantId
+  if (!tenantId) throw new Error("Export a trust anchor with your expected tenantId before starting the gate")
   /** Request approval, wait for the human, then verify and consume the resulting receipt. */
   async function requestApproval(
     description: string,
@@ -60,6 +62,7 @@ export function createGate(config: Config, client: IntygaClient, trust: TrustAnc
       receipt,
       {
         ...action,
+        tenantId,
         nonce,
         approvers: trustAnchorApprovers(trust),
         requirement: { requiredApprovals: config.INTYGA_REQUIRED_APPROVALS },

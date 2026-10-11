@@ -85,7 +85,7 @@ public final class GateProdDelete {
             approval.nonce(),
             "wipe_production",
             approvedParams,
-            ApproverTrustAnchor.ofPublicKeys(approverKeys)),
+            ApproverTrustAnchor.ofPublicKeys(approverKeys)).withTenantId(requiredTenantId()),
         // REQUIRED for passkey receipts (the normal flow): pin the assertion to the approval
         // console the human signed in — your deployment's WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID.
         // The verifier fails closed without them.
@@ -125,6 +125,12 @@ public final class GateProdDelete {
   private static String env(String name, String fallback) {
     String value = System.getenv(name);
     return value == null || value.isEmpty() ? fallback : value;
+  }
+
+  private static String requiredTenantId() {
+    String value = System.getenv("INTYGA_TENANT_ID");
+    if (value == null || value.isEmpty()) throw new IllegalStateException("INTYGA_TENANT_ID is required for receipt verification");
+    return value;
   }
 
   private GateProdDelete() {}

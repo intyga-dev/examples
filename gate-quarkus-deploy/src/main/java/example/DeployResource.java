@@ -73,7 +73,7 @@ public class DeployResource {
     VerifyResult check = Verify.verifyApprovalReceipt(
         ApprovalReceipt.parse(approval.receipt()),
         new Expected(TARGET, approval.nonce(), "deploy_production", params,
-            ApproverTrustAnchor.ofPublicKeys(APPROVER_KEYS)),
+            ApproverTrustAnchor.ofPublicKeys(APPROVER_KEYS)).withTenantId(requiredTenantId()),
         // REQUIRED for passkey receipts (the normal flow): pin the assertion to the approval
         // console the human signed in — your deployment's WEBAUTHN_ORIGIN / WEBAUTHN_RP_ID.
         // The verifier fails closed without them.
@@ -115,5 +115,11 @@ public class DeployResource {
   private static String env(String name, String fallback) {
     String value = System.getenv(name);
     return value == null || value.isEmpty() ? fallback : value;
+  }
+
+  private static String requiredTenantId() {
+    String value = System.getenv("INTYGA_TENANT_ID");
+    if (value == null || value.isEmpty()) throw new IllegalStateException("INTYGA_TENANT_ID is required for receipt verification");
+    return value;
   }
 }

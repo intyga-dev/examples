@@ -31,6 +31,9 @@ async def export_customers(client, trust, *, target, region, output, required_ap
         raise ValueError("Invalid export target or region")
     if type(required_approvals) is not int or required_approvals < 1:
         raise ValueError("Invalid approver quorum")
+    tenant_id = trust.get("tenantId")
+    if not isinstance(tenant_id, str) or not tenant_id:
+        raise ValueError("Trust anchor must pin tenantId for DIV v2 receipt verification")
     destination = Path(output).resolve()
     if destination.suffix != ".csv" or destination.exists():
         raise ValueError("Output must be a new .csv file")
@@ -61,6 +64,7 @@ async def export_customers(client, trust, *, target, region, output, required_ap
     checked = verify_approval_receipt(
         approval["receipt"],
         {
+            "tenantId": tenant_id,
             "target": target, "actionType": action_type, "params": params, "nonce": nonce,
             "approvers": trust_anchor_approvers(trust),
             "requirement": {"requiredApprovals": required_approvals},

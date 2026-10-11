@@ -11,6 +11,8 @@ const database = process.argv[2] ?? "prod-db-1"
 // The execution target — who WE are. Bound into the signed payload (DIV Target Isolation) so an
 // approval minted for another service cannot be replayed here.
 const target = process.env.INTYGA_TARGET ?? "prod-db-cluster-01"
+const tenantId = process.env.INTYGA_TENANT_ID
+if (!tenantId) throw new Error("Set INTYGA_TENANT_ID to the workspace that owns this action.")
 
 // The approver keys THIS caller trusts, resolved from our own key management. Never the key inside
 // the receipt: a receipt checked against its own embedded key proves nothing.
@@ -48,6 +50,7 @@ async function main() {
     approval.receipt,
     {
       ...action,
+      tenantId,
       nonce: approval.nonce,
       approvers: { publicKeys: approverKeys },
     },

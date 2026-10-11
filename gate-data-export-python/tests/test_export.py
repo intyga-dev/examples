@@ -22,8 +22,11 @@ class FakeClient:
             serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
         )).decode()
         self.did = "did:intyga:example-approver"
+        self.tenant_id = "tenant-gate-data-export-test"
+        self.receipt_tenant_id = self.tenant_id
         self.trust = {
-            "type": "intyga-trust-anchor", "v": 1, "epoch": 1,
+            "type": "intyga-trust-anchor", "v": 1, "purpose": "online",
+            "tenantId": self.tenant_id, "epoch": 1,
             "approvers": [{"did": self.did, "publicKeys": [self.public_key]}],
         }
         self.tamper = None
@@ -47,6 +50,7 @@ class FakeClient:
         canonical = canonical_intent_payload(
             target, action_type, display, params, requester, requirement, nonce,
             (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            tenant_id=self.receipt_tenant_id,
         )
         r, s = decode_dss_signature(self.key.sign(canonical.encode(), ec.ECDSA(hashes.SHA256())))
         signature = base64.b64encode(r.to_bytes(32, "big") + s.to_bytes(32, "big")).decode()
@@ -112,6 +116,19 @@ class ExportTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "RECEIPT_REFUSED"):
             await self.export()
         self.assertFalse(self.output.exists())
+        self.assertEqual(self.client.consume_count, 0)
+
+    async def test_a_receipt_from_another_tenant_is_refused_before_consumption(self):
+        self.client.receipt_tenant_id = "another-workspace"
+        with self.assertRaisesRegex(RuntimeError, "RECEIPT_REFUSED"):
+            await self.export()
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.client.consume_count, 0)
+
+    async def test_a_trust_anchor_without_tenant_is_refused(self):
+        self.client.trust.pop("tenantId")
+        with self.assertRaisesRegex(ValueError, "must pin tenantId"):
+            await self.export()
         self.assertEqual(self.client.consume_count, 0)
 
     async def test_weaker_quorum_is_refused(self):

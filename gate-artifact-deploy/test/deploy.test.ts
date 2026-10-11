@@ -9,14 +9,18 @@ function fixture(options: { tamper?: string; consume?: boolean; denied?: boolean
   const key = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
   const publicKey = key.publicKey.export({ format: "der", type: "spki" }).toString("base64")
   const did = "did:intyga:example-approver"
+  const tenantId = "tenant-gate-artifact-deploy-test"
   const trust: TrustAnchorFile = {
     type: "intyga-trust-anchor",
     v: 1,
+    purpose: "online",
+    tenantId,
     epoch: 1,
     approvers: [{ did, publicKeys: [publicKey] }],
   }
   let consumptions = 0
   let requested: Record<string, unknown> | undefined
+  let signedPayload: string | undefined
   const client: Pick<IntygaClient, "requireApproval" | "consume"> = {
     async requireApproval(display, action) {
       assert.ok(action?.params)
@@ -33,6 +37,7 @@ function fixture(options: { tamper?: string; consume?: boolean; denied?: boolean
         signerClass: "human" as const,
       }
       const canonicalPayload = canonicalIntentPayload({
+        tenantId,
         target: action.target,
         actionType: action.actionType ?? "",
         display,
@@ -42,6 +47,7 @@ function fixture(options: { tamper?: string; consume?: boolean; denied?: boolean
         requirement,
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       })
+      signedPayload = canonicalPayload
       const receipt: ApprovalReceipt = {
         target: action.target,
         actionType: action.actionType ?? "",
@@ -77,6 +83,8 @@ function fixture(options: { tamper?: string; consume?: boolean; denied?: boolean
     },
     consumptions: () => consumptions,
     requested: () => requested,
+    signedPayload: () => signedPayload,
+    tenantId,
   }
 }
 
@@ -84,6 +92,9 @@ test("binds the artifact digest and environment, verifies and consumes before si
   const f = fixture()
   const result = await deployArtifact(f.input)
   assert.equal(result.status, "SIMULATED")
+  const payload = JSON.parse(f.signedPayload() ?? "null") as { v?: unknown; tenantId?: unknown }
+  assert.equal(payload.v, 2)
+  assert.equal(payload.tenantId, f.tenantId)
   assert.equal(result.artifactSha256, createHash("sha256").update("frozen release").digest("hex"))
   assert.equal(result.environment, "staging")
   assert.equal(f.consumptions(), 1)
@@ -114,6 +125,13 @@ test("refuses denial, untrusted approvers and insufficient quorum", async () => 
   const quorum = fixture()
   await assert.rejects(deployArtifact({ ...quorum.input, requiredApprovals: 2 }), /RECEIPT_REFUSED/)
   assert.equal(quorum.consumptions(), 0)
+})
+
+test("refuses a receipt bound to a different tenant before consumption", async () => {
+  const f = fixture()
+  const tamperedTrust = { ...f.input.trust, tenantId: "another-workspace" }
+  await assert.rejects(deployArtifact({ ...f.input, trust: tamperedTrust }), /RECEIPT_REFUSED/)
+  assert.equal(f.consumptions(), 0)
 })
 
 test("refuses consumption failure without reporting a deployment", async () => {
